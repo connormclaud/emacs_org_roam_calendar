@@ -68,8 +68,10 @@ DATES is a list of absolute days with activity."
 (defun org-roam-calendar-visit-day ()
   "Visit the list of org-roam notes modified on the date at point (in calendar)."
   (interactive)
-  (let ((displayed-month org-habit-stats-displayed-month)
-        (displayed-year org-habit-stats-displayed-year))
+  (let* ((month org-habit-stats-displayed-month)
+         (year org-habit-stats-displayed-year)
+         (displayed-month (if (zerop month) 12 month))
+         (displayed-year (if (zerop month) (1- year) year)))
     (save-restriction
       (when org-habit-stats-calendar-bounds
         (narrow-to-region (car org-habit-stats-calendar-bounds)
@@ -128,15 +130,8 @@ DATES is a list of absolute days with activity."
      "Visualization of daily note-taking activity."
      'file)
 
-    (let* ((specific-cal-buffer-name (concat "*Org-Habit-Stats "
-                                             (truncate-string-to-width "Org Roam Activity" 25 nil nil t)
-                                             "*"))
-           (cal-buffer (or (get-buffer specific-cal-buffer-name)
-                           (get-buffer org-habit-stats-calendar-buffer))))
-      (if cal-buffer
-          (with-current-buffer cal-buffer
-            (org-roam-calendar-mode 1))
-        (message "Could not find calendar buffer to activate org-roam-calendar-mode.")))))
+    ;; Activate minor mode in the current buffer (which is the main stats buffer just created/switched to)
+    (org-roam-calendar-mode 1)))
 
 (provide 'org-roam-calendar)
 ;;; org-roam-calendar.el ends here
