@@ -16,6 +16,10 @@
 (require 'org-habit-stats)
 (require 'calendar)
 
+;; Ensure dynamic binding for calendar variables
+(defvar displayed-month)
+(defvar displayed-year)
+
 (defgroup org-roam-calendar nil
   "View org-roam activity in a calendar."
   :group 'org-roam
@@ -64,28 +68,34 @@ DATES is a list of absolute days with activity."
 (defun org-roam-calendar-visit-day ()
   "Visit the list of org-roam notes modified on the date at point (in calendar)."
   (interactive)
-  (let* ((date (calendar-cursor-to-date t))
-         (abs-date (calendar-absolute-from-gregorian date))
-         (nodes (org-roam-db-query
-                 [:select [nodes:id nodes:title nodes:file files:mtime]
-                  :from nodes
-                  :inner-join files
-                  :on (= nodes:file files:file)]
-                 ))
-         ;; Filter nodes by date in Lisp for simplicity since SQLite date manipulation can be tricky across OS
-         (day-nodes (seq-filter (lambda (row)
-                                  (= abs-date
-                                     (org-roam-calendar-days-from-time (nth 3 row))))
-                                nodes)))
-    (if (not day-nodes)
-        (message "No activity on %s" (calendar-date-string date))
-      (let* ((candidates (mapcar (lambda (row)
-                                   (cons (format "%s (%s)" (cadr row) (file-name-nondirectory (nth 2 row)))
-                                         (car row)))
-                                 day-nodes))
-             (choice (completing-read (format "Notes for %s: " (calendar-date-string date))
-                                      candidates)))
-        (org-roam-node-open (org-roam-node-from-id (cdr (assoc choice candidates))))))))
+  (let ((displayed-month org-habit-stats-displayed-month)
+        (displayed-year org-habit-stats-displayed-year))
+    (save-restriction
+      (when org-habit-stats-calendar-bounds
+        (narrow-to-region (car org-habit-stats-calendar-bounds)
+                          (cdr org-habit-stats-calendar-bounds)))
+      (let* ((date (calendar-cursor-to-date t))
+             (abs-date (calendar-absolute-from-gregorian date))
+             (nodes (org-roam-db-query
+                     [:select [nodes:id nodes:title nodes:file files:mtime]
+                      :from nodes
+                      :inner-join files
+                      :on (= nodes:file files:file)]
+                     ))
+             ;; Filter nodes by date in Lisp for simplicity since SQLite date manipulation can be tricky across OS
+             (day-nodes (seq-filter (lambda (row)
+                                      (= abs-date
+                                         (org-roam-calendar-days-from-time (nth 3 row))))
+                                    nodes)))
+        (if (not day-nodes)
+            (message "No activity on %s" (calendar-date-string date))
+          (let* ((candidates (mapcar (lambda (row)
+                                       (cons (format "%s (%s)" (cadr row) (file-name-nondirectory (nth 2 row)))
+                                             (car row)))
+                                     day-nodes))
+                 (choice (completing-read (format "Notes for %s: " (calendar-date-string date))
+                                          candidates)))
+            (org-roam-node-open (org-roam-node-from-id (cdr (assoc choice candidates))))))))))
 
 ;; Hook into org-habit-stats calendar keymap
 ;; Since org-habit-stats creates a calendar buffer but doesn't seem to export a specific map variable 
