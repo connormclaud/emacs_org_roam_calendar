@@ -128,12 +128,15 @@ DATES is a list of absolute days with activity."
      "Visualization of daily note-taking activity."
      'file)
 
-    ;; Now find the calendar buffer created by org-habit-stats and enable our minor mode
-    ;; org-habit-stats uses hardcoded buffer names pattern usually, or stores it in var.
-    ;; We can find it via the variable `org-habit-stats-calendar-buffer`.
-    (when (get-buffer org-habit-stats-calendar-buffer)
-      (with-current-buffer org-habit-stats-calendar-buffer
-        (org-roam-calendar-mode 1)))))
+    (let* ((specific-cal-buffer-name (concat "*Org-Habit-Stats "
+                                             (truncate-string-to-width "Org Roam Activity" 25 nil nil t)
+                                             "*"))
+           (cal-buffer (or (get-buffer specific-cal-buffer-name)
+                           (get-buffer org-habit-stats-calendar-buffer))))
+      (if cal-buffer
+          (with-current-buffer cal-buffer
+            (org-roam-calendar-mode 1))
+        (message "Could not find calendar buffer to activate org-roam-calendar-mode.")))))
 
 (provide 'org-roam-calendar)
 ;;; org-roam-calendar.el ends here
