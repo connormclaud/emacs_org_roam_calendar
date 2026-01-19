@@ -13,6 +13,7 @@
 ;;; Code:
 
 (require 'org-roam)
+(require 'org-roam-dailies)
 (require 'org-habit-stats)
 (require 'calendar)
 
@@ -31,6 +32,42 @@ If nil or not found, falls back to file modification time."
   :type 'string
   :group 'org-roam-calendar)
 
+(defcustom org-roam-calendar-dailies-visibility 'include
+  "Control visibility of daily notes in the calendar.
+Possible values:
+- 'include: Show daily notes (default).
+- 'exclude: Hide daily notes.
+- 'only: Show *only* daily notes."
+  :type '(choice (const :tag "Include dailies" include)
+                 (const :tag "Exclude dailies" exclude)
+                 (const :tag "Only dailies" only))
+  :group 'org-roam-calendar)
+
+(defun org-roam-calendar--file-is-daily-p (file)
+  "Return t if FILE is a daily note."
+  (let ((dailies-dir (expand-file-name org-roam-dailies-directory org-roam-directory))
+        (abs-file (expand-file-name file)))
+    (string-prefix-p dailies-dir abs-file)))
+
+(defun org-roam-calendar--default-filter-fn (file)
+  "Default filter function respecting `org-roam-calendar-dailies-visibility'."
+  (let ((is-daily (org-roam-calendar--file-is-daily-p file)))
+    (cond
+     ((eq org-roam-calendar-dailies-visibility 'include) t)
+     ((eq org-roam-calendar-dailies-visibility 'exclude) (not is-daily))
+     ((eq org-roam-calendar-dailies-visibility 'only) is-daily))))
+
+(defcustom org-roam-calendar-filter-fn #'org-roam-calendar--default-filter-fn
+  "Function to filter files included in the calendar.
+The function is called with the absolute file path and should return non-nil
+if the file should be included.
+Defaults to `org-roam-calendar--default-filter-fn' which respects
+`org-roam-calendar-dailies-visibility'."
+  :type 'function
+  :group 'org-roam-calendar)
+
+
+
 (defun org-roam-calendar-days-from-time (time)
   "Convert system TIME to absolute days."
   (calendar-absolute-from-gregorian
@@ -41,11 +78,13 @@ If nil or not found, falls back to file modification time."
   "Return a list of absolute days where org-roam files were modified.
 Uses `mtime' from `files' table in org-roam database."
   (let ((rows (org-roam-db-query
-               "SELECT mtime FROM files")))
+               "SELECT file, mtime FROM files")))
     (sort (delete-dups
            (mapcar (lambda (row)
-                     (org-roam-calendar-days-from-time (car row)))
-                   rows))
+                     (org-roam-calendar-days-from-time (cadr row)))
+                   (seq-filter (lambda (row)
+                                 (funcall org-roam-calendar-filter-fn (car row)))
+                               rows)))
           #'<)))
 
 (defun org-roam-calendar--make-habit-data (dates)
@@ -86,8 +125,9 @@ DATES is a list of absolute days with activity."
                      ))
              ;; Filter nodes by date in Lisp for simplicity since SQLite date manipulation can be tricky across OS
              (day-nodes (seq-filter (lambda (row)
-                                      (= abs-date
-                                         (org-roam-calendar-days-from-time (nth 3 row))))
+                                      (and (= abs-date
+                                              (org-roam-calendar-days-from-time (nth 3 row)))
+                                           (funcall org-roam-calendar-filter-fn (nth 2 row))))
                                     nodes)))
         (if (not day-nodes)
             (message "No activity on %s" (calendar-date-string date))
@@ -105,9 +145,22 @@ DATES is a list of absolute days with activity."
 ;; However, we only want this binding when viewing our specific org-roam calendar.
 ;; We'll use a minor mode in the calendar buffer.
 
+(defun org-roam-calendar-cycle-visibility ()
+  "Cycle `org-roam-calendar-dailies-visibility' between 'include, 'exclude, and 'only.
+Refreshes the calendar view."
+  (interactive)
+  (setq org-roam-calendar-dailies-visibility
+        (cond
+         ((eq org-roam-calendar-dailies-visibility 'include) 'exclude)
+         ((eq org-roam-calendar-dailies-visibility 'exclude) 'only)
+         ((eq org-roam-calendar-dailies-visibility 'only) 'include)))
+  (message "Org Roam Calendar Visibility: %s" org-roam-calendar-dailies-visibility)
+  (org-roam-calendar-open))
+
 (defvar org-roam-calendar-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "RET") #'org-roam-calendar-visit-day)
+    (define-key map (kbd "/") #'org-roam-calendar-cycle-visibility)
     map)
   "Keymap for `org-roam-calendar-mode'.")
 

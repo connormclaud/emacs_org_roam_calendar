@@ -14,6 +14,7 @@ This package provides a calendar view that highlights days where `org-roam` node
 - **Activity Visualization**: See which days you worked on your notes.
 - **Interactive Calendar**: Press `RET` on a date to see and open notes modified on that day.
 - **Easy Integration**: Hooks directly into your existing `org-roam` database.
+- **Filtering**: Easily filter out daily notes.
 
 ## Installation
 
@@ -46,3 +47,5 @@ Run `M-x org-roam-calendar-open` to open the calendar view.
 
 - **Navigation**: Use standard calendar navigation keys.
 - **View Notes**: Press `RET` on a highlighted date to select and open a note(s) modified on that day.
+- **Cycle Dailies**: Press `/` to cycle the visibility of daily notes (`include` -> `exclude` -> `only`).
+
