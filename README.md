@@ -1,4 +1,4 @@
-# org-roam-calendar
+# org-roam-calendar [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/connormclaud/emacs_org_roam_calendar)
 
 View your [org-roam](https://github.com/org-roam/org-roam) activity in a calendar visualization using `org-habit-stats`.
 
