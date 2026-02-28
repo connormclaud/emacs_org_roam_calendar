@@ -139,11 +139,39 @@ DATES is a list of absolute days with activity."
                                           candidates)))
             (org-roam-node-open (org-roam-node-from-id (cdr (assoc choice candidates))))))))))
 
-;; Hook into org-habit-stats calendar keymap
-;; Since org-habit-stats creates a calendar buffer but doesn't seem to export a specific map variable 
-;; easy to hook, we might need to rely on the fact it uses `calendar-mode`.
-;; However, we only want this binding when viewing our specific org-roam calendar.
-;; We'll use a minor mode in the calendar buffer.
+(defun org-roam-calendar--goto-calendar-date (date)
+  "Position cursor on DATE in the calendar region of the stats buffer.
+DATE is a gregorian date list (month day year)."
+  (when org-habit-stats-calendar-bounds
+    (let ((cal-pos (with-current-buffer org-habit-stats-calendar-buffer
+                     (calendar-cursor-to-visible-date date)
+                     (point))))
+      (goto-char (+ (car org-habit-stats-calendar-bounds)
+                     cal-pos -1)))))
+
+(defun org-roam-calendar--navigate-to-date (date)
+  "Scroll calendar to show DATE and position cursor on it.
+DATE is a gregorian date list (month day year)."
+  (let ((month (calendar-extract-month date))
+        (year (calendar-extract-year date)))
+    (setq org-habit-stats-displayed-month (1- month))
+    (setq org-habit-stats-displayed-year year)
+    (org-habit-stats-refresh-calendar-buffer)
+    (org-habit-stats-refresh-calendar-section)
+    (org-roam-calendar--goto-calendar-date date)))
+
+(defun org-roam-calendar-goto-today ()
+  "Navigate the calendar to today and position cursor on today's date."
+  (interactive)
+  (org-roam-calendar--navigate-to-date (calendar-current-date)))
+
+(defun org-roam-calendar-goto-date ()
+  "Navigate the calendar to a chosen date and position cursor on it."
+  (interactive)
+  (let* ((time (org-read-date nil t nil "Go to date: "))
+         (date (decode-time time))
+         (greg-date (list (nth 4 date) (nth 3 date) (nth 5 date))))
+    (org-roam-calendar--navigate-to-date greg-date)))
 
 (defun org-roam-calendar-cycle-visibility ()
   "Cycle `org-roam-calendar-dailies-visibility' between 'include, 'exclude, and 'only.
@@ -161,6 +189,8 @@ Refreshes the calendar view."
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "RET") #'org-roam-calendar-visit-day)
     (define-key map (kbd "/") #'org-roam-calendar-cycle-visibility)
+    (define-key map (kbd ".") #'org-roam-calendar-goto-today)
+    (define-key map (kbd "g") #'org-roam-calendar-goto-date)
     map)
   "Keymap for `org-roam-calendar-mode'.")
 
